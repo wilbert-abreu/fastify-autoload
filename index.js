@@ -5,6 +5,7 @@ const url = require('url')
 const { readdir } = require('fs').promises
 const pkgUp = require('pkg-up')
 const semver = require('semver')
+const fp = require('fastify-plugin')
 
 const isTsNode = (Symbol.for('ts-node.register.instance') in process) || !!process.env.TS_NODE_DEV
 const isJestEnvironment = process.env.JEST_WORKER_ID !== undefined
@@ -19,7 +20,8 @@ const defaults = {
   scriptPattern: /((^.?|\.[^d]|[^.]d|[^.][^d])\.ts|\.js|\.cjs|\.mjs)$/i,
   indexPattern: /^index(\.ts|\.js|\.cjs|\.mjs)$/i,
   autoHooksPattern: /^[_.]?auto_?hooks(\.ts|\.js|\.cjs|\.mjs)$/i,
-  dirNameRoutePrefix: true
+  dirNameRoutePrefix: true,
+  encapsulated: true
 }
 
 const fastifyAutoload = async function autoload (fastify, options) {
@@ -28,6 +30,9 @@ const fastifyAutoload = async function autoload (fastify, options) {
   const pluginTree = await findPlugins(opts.dir, opts)
   const pluginsMeta = {}
   const hooksMeta = {}
+
+  const fastifyRegister = fastify.register
+  fastify.register = (plugin, options) => opts.encapsulated ? fastifyRegister(plugin, options) : fastifyRegister(fp(plugin), options)
 
   const pluginArray = [].concat.apply([], Object.values(pluginTree).map(o => o.plugins))
   const hookArray = [].concat.apply([], Object.values(pluginTree).map(o => o.hooks))
